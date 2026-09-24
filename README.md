@@ -87,6 +87,23 @@ Se conservan además las funcionalidades existentes de Categorías: `PATCH /cate
 ```bash
 pytest -v
 
+# Ejecutar TODAS las pruebas
+pytest -v
+
+# Solo las de productos
+pytest test/test_products.py -v
+
+# Solo las de categorías
+pytest test/test_categories.py -v
+
+# Solo las positivas
+pytest -v -m positive
+
+# Solo las negativas
+pytest -v -m negative
+
+# Solo las de frontera
+pytest -v -m boundary   
 ```
 
 Los tests utilizan `TestClient`, fixtures de aislamiento y comentarios `CP-CAT-XX` / `CP-PROD-XX` para conservar trazabilidad con `docs/casos-prueba.md`.

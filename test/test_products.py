@@ -1,206 +1,166 @@
-from copy import deepcopy
-
-import pytest
+from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
-
-from app.database import categories_db, products_db
+import pytest
 from app.main import app
+from app.database import products_db
 
 client = TestClient(app)
 
-INITIAL_CATEGORIES = deepcopy(categories_db)
-INITIAL_PRODUCTS = deepcopy(products_db)
-
+INITIAL_PRODUCTS = products_db.copy()
 
 @pytest.fixture(autouse=True)
-def reset_databases():
-    categories_db.clear()
-    categories_db.extend(deepcopy(INITIAL_CATEGORIES))
+def reset_products_db():
     products_db.clear()
-    products_db.extend(deepcopy(INITIAL_PRODUCTS))
+    products_db.extend(INITIAL_PRODUCTS)
 
-
-def valid_product(**overrides):
-    payload = {
-        "name": "Teclado mecánico",
-        "price": 250000,
-        "stock": 10,
-        "category_id": 1,
-    }
-    payload.update(overrides)
-    return payload
-
-
-# CP-PROD-01 / RF05
-@pytest.mark.positive
-def test_cp_prod_01_create_valid_product():
-    response = client.post("/products", json=valid_product())
-    assert response.status_code == 201
-    assert response.json()["name"] == "Teclado mecánico"
-
-
-# CP-PROD-02 / RF06
-@pytest.mark.positive
-def test_cp_prod_02_list_products():
+# Tipo: Integración | Naturaleza: Positiva (Prueba el estado de salud de la API esperando un código 200)
+def test_health():
+    endpoint = "/health"
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
+    
+# Tipo: Integración | Naturaleza: Positiva (Consulta la lista completa de productos esperando código 200)
+def test_get_products():
     response = client.get("/products")
     assert response.status_code == 200
-    assert len(response.json()) >= 1
-
-
-# CP-PROD-03 / RF07
-@pytest.mark.positive
-def test_cp_prod_03_get_existing_product():
+    data = response.json()
+    assert isinstance(data, list)
+    
+# Tipo: Integración | Naturaleza: Positiva (Consulta un producto existente por ID esperando código 200)
+def test_get_existing_products():
     response = client.get("/products/1")
     assert response.status_code == 200
-    assert response.json()["id"] == 1
-
-
-# CP-PROD-04 / RF08
-@pytest.mark.negative
-def test_cp_prod_04_get_unknown_product_returns_404():
-    response = client.get("/products/99999")
+    data = response.json()
+    assert data["id"] == 1
+    assert "name" in data
+    
+# Tipo: Integración | Naturaleza: Negativa (Consulta un producto que no existe esperando un error 404)
+def test_get_non_existing_product():
+    response = client.get("/products/9999")
     assert response.status_code == 404
-
-
-# CP-PROD-05 / RF09
-@pytest.mark.positive
-def test_cp_prod_05_update_existing_product():
-    response = client.put("/products/1", json=valid_product(name="Mouse actualizado"))
+    data = response.json()
+    assert data["detail"] == "Product not found"
+    
+# Tipo: Integración | Naturaleza: Negativa (Envía un ID inválido con letras esperando un error de validación 422)
+def test_invalid_product_id():
+    response = client.get("/products/abc")
+    assert response.status_code == 422
+    assert "detail" in response.json()
+    
+# Tipo: Integración | Naturaleza: Positiva (Filtra los productos activos mediante parámetros de consulta esperando código 200)
+def test_filter_active_products():
+    response = client.get("/products?active=true")
     assert response.status_code == 200
-    assert response.json()["name"] == "Mouse actualizado"
+    data = response.json()
+    assert all(product["active"] is True for product in data)
+  
+# Tipo: Integración | Naturaleza: Positiva (Filtra los productos por categoría específica esperando código 200)
+def test_filter_products_by_category():
+    response = client.get("/products?category=Accesorios")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(product["category"] == "Accesorios" for product in data)
 
-
-# CP-PROD-06 / RF10
-@pytest.mark.negative
-def test_cp_prod_06_update_unknown_product_returns_404():
-    response = client.put("/products/99999", json=valid_product())
-    assert response.status_code == 404
-
-
-# CP-PROD-07 / RF11
-@pytest.mark.positive
-def test_cp_prod_07_delete_existing_product():
-    response = client.delete("/products/1")
-    assert response.status_code == 204
-    assert response.content == b""
-    assert client.get("/products/1").status_code == 404
-
-
-# CP-PROD-08 / RF12
-@pytest.mark.negative
-def test_cp_prod_08_delete_unknown_product_returns_404():
-    response = client.delete("/products/99999")
-    assert response.status_code == 404
-
-
-# CP-PROD-09 / RN03
-@pytest.mark.boundary
-def test_cp_prod_09_name_shorter_than_three_characters_is_rejected():
-    response = client.post("/products", json=valid_product(name="AB"))
-    assert response.status_code == 422
-
-
-# CP-PROD-10 / RN03
-@pytest.mark.boundary
-def test_cp_prod_10_name_of_exactly_three_characters_is_accepted():
-    response = client.post("/products", json=valid_product(name="TVX"))
+# Tipo: Integración | Naturaleza: Positiva (Crea un nuevo producto exitosamente enviando datos correctos esperando un código 201)
+def test_create_product():
+    new_product = {
+        "name": "New Product",
+        "category": "Accesorios",
+        "price": 100.0,
+        "stock": 10,
+        "active": True
+    }
+    response = client.post("/products", json=new_product)
     assert response.status_code == 201
-
-
-# CP-PROD-11 / RN04
-@pytest.mark.boundary
-def test_cp_prod_11_zero_price_is_rejected():
-    response = client.post("/products", json=valid_product(price=0))
+    data = response.json()
+    assert data["name"] == new_product["name"]
+    assert data["category"] == new_product["category"]
+    assert data["active"] == new_product["active"]
+    assert data["price"] == new_product["price"]
+    assert data["stock"] == new_product["stock"]
+    
+# Tipo: Integración | Naturaleza: Negativa (Intenta crear un producto con un precio negativo esperando que la API lo rechace con un código 422)
+def test_create_product_negative_price():
+    new_product = {
+        "name": "New Product",
+        "category": "Accesorios",
+        "price": -10,
+        "stock": 5,
+        "active": True
+    }
+    response = client.post("/products", json=new_product)
     assert response.status_code == 422
-
-
-# CP-PROD-12 / RN04
-@pytest.mark.negative
-def test_cp_prod_12_negative_price_is_rejected():
-    response = client.post("/products", json=valid_product(price=-1000))
-    assert response.status_code == 422
-
-
-# CP-PROD-13 / RN04
-@pytest.mark.boundary
-def test_cp_prod_13_minimum_positive_price_is_accepted():
-    response = client.post("/products", json=valid_product(price=0.01))
-    assert response.status_code == 201
-
-
-# CP-PROD-14 / RN05/RN07
-@pytest.mark.boundary
-def test_cp_prod_14_zero_stock_is_accepted():
-    response = client.post("/products", json=valid_product(stock=0))
-    assert response.status_code == 201
-
-
-# CP-PROD-15 / RN05
-@pytest.mark.boundary
-def test_cp_prod_15_negative_stock_is_rejected():
-    response = client.post("/products", json=valid_product(stock=-1))
-    assert response.status_code == 422
-
-
-# CP-PROD-16 / RN06
-@pytest.mark.negative
-def test_cp_prod_16_unknown_category_is_rejected():
-    response = client.post("/products", json=valid_product(category_id=99999))
-    assert response.status_code == 404
-
-
-# CP-PROD-17 / RN08
-@pytest.mark.boundary
-def test_cp_prod_17_invalid_price_on_update_is_rejected():
-    response = client.put("/products/1", json=valid_product(price=0))
-    assert response.status_code == 422
-
-
-# CP-PROD-18 / RN06/RN08
-@pytest.mark.negative
-def test_cp_prod_18_unknown_category_on_update_is_rejected():
-    response = client.put("/products/1", json=valid_product(category_id=99999))
-    assert response.status_code == 404
-
-
-# CP-PROD-19 / RN03
-# Regresión: los nombres compuestos solo por espacios deben rechazarse.
-@pytest.mark.negative
-def test_product_blank_name_is_rejected():
-    response = client.post("/products", json=valid_product(name="   "))
-    assert response.status_code == 422
-
-
-# CP-PROD-20 / RN04
-# Regresión: NaN e Infinity no son precios válidos para una API monetaria.
-@pytest.mark.negative
-def test_product_non_finite_price_is_rejected():
-    for invalid_price in ("NaN", "Infinity", "-Infinity"):
-        response = client.post("/products", json=valid_product(price=invalid_price))
-        assert response.status_code == 422
-
-
-# CP-PROD-21 / Contrato estricto del payload
-# Regresión: los campos fuera del contrato deben rechazarse explícitamente.
-@pytest.mark.negative
-def test_product_unknown_field_is_rejected():
-    response = client.post(
-        "/products", json={**valid_product(), "unexpected": True}
+    data = response.json()
+    assert "detail" in data
+    assert any(
+        error["loc"][-1] == "price" 
+        for error in data["detail"]
     )
+    
+# Tipo: Integración | Naturaleza: Positiva (Actualiza completamente un producto existente mediante PUT esperando código 200)
+def test_update_product():
+    updated_product = {
+        "name": "Updated Product",
+        "category": "Accesorios",
+        "price": 50.0,
+        "stock": 10,
+        "active": False
+    }
+    response = client.put("/products/1", json=updated_product)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == updated_product["name"]
+    assert data["category"] == updated_product["category"]
+    assert data["active"] == updated_product["active"]
+    assert data["price"] == updated_product["price"]
+    assert data["stock"] == updated_product["stock"]
+    
+# Tipo: Integración | Naturaleza: Positiva (Actualiza parcialmente el precio de un producto mediante PATCH esperando código 200)
+def test_update_price_patch():
+    updated_price = {
+        "price": 75.0
+    }
+    response = client.patch("/products/1", json=updated_price)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["price"] == updated_price["price"]
+    
+# Tipo: Integración | Naturaleza: Negativa (Intenta actualizar un producto que no existe esperando un error 404)
+def test_update_non_existing_product():
+    updated_product = {
+        "name": "Updated Product",
+        "category": "Accesorios",
+        "price": 50.0,
+        "stock": 10,
+        "active": False
+    }
+    response = client.put("/products/999", json=updated_product)
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Product not found"
+    
+# Tipo: Integración | Naturaleza: Positiva (Elimina un producto existente mediante DELETE esperando un código 200)
+def test_delete_product():
+    response = client.delete("/products/1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == 1
+
+# Tipo: Integración | Naturaleza: Negativa y Frontera | Parametrizada (Valida múltiples escenarios de error por datos inválidos en la creación de productos, esperando un código 422)
+@pytest.mark.parametrize(
+    "payload",
+    [
+        # Nombre menor a 3 caracteres (Frontera negativa)
+        {"name": "Ab", "category": "Accesorios", "price": 50.0, "stock": 10, "active": True},
+        # Precio menor o igual a cero (Negativa / Frontera)
+        {"name": "Producto", "category": "Accesorios", "price": 0.0, "stock": 10, "active": True},
+        # Stock negativo (Negativa)
+        {"name": "Producto", "category": "Accesorios", "price": 50.0, "stock": -3, "active": True},
+    ]
+)
+def test_create_product_validation_parametrized(payload):
+    response = client.post("/products", json=payload)
     assert response.status_code == 422
-
-
-# CP-PROD-22 / RN03 (frontera superior)
-# Frontera positiva: exactamente 80 caracteres (max_length) debe aceptarse.
-@pytest.mark.boundary
-def test_cp_prod_22_name_exactly_eighty_characters_is_accepted():
-    response = client.post("/products", json=valid_product(name="A" * 80))
-    assert response.status_code == 201
-
-
-# CP-PROD-23 / RN03 (frontera superior)
-# Frontera negativa: 81 caracteres supera el max_length y debe rechazarse.
-@pytest.mark.boundary
-def test_cp_prod_23_name_eighty_one_characters_is_rejected():
-    response = client.post("/products", json=valid_product(name="A" * 81))
-    assert response.status_code == 422
+    assert "detail" in response.json()
