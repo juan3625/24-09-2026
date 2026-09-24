@@ -1,0 +1,13 @@
+MATRIZ DE CASOS DE PRUEBA - PRODUCTS & CATEGORIES API
+
+Este archivo conserva el artefacto de la actividad anterior y remite a la documentación canónica consolidada del Módulo IV.
+
+Documentos vigentes:
+- docs/plan-pruebas.md
+- docs/matriz-trazabilidad.md
+- docs/casos-prueba.md
+- docs/registro-defectos.md
+- docs/informe-ejecucion.md
+- docs/evidencia-pytest.txt
+
+La suite actual contiene los casos de Categorías y Productos activos, con trazabilidad CP-CAT-XX y CP-PROD-XX. Las pruebas ya no están comentadas.

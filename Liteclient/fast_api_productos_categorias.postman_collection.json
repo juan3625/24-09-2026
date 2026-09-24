@@ -1,0 +1,147 @@
+{
+  "info": {
+    "name": "FastAPI Productos y Categorías",
+    "description": "Colección para probar la API de categorías y productos del proyecto.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "category_id",
+      "value": "1"
+    },
+    {
+      "key": "product_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Listar categorías",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/categories"
+      }
+    },
+    {
+      "name": "Filtrar categorías activas",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/categories?active=true"
+      }
+    },
+    {
+      "name": "Buscar categorías",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/categories?search=comp"
+      }
+    },
+    {
+      "name": "Consultar categoría",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/categories/{{category_id}}"
+      }
+    },
+    {
+      "name": "Crear categoría",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Monitores\",\n  \"description\": \"Pantallas para computadores\",\n  \"active\": true\n}"
+        },
+        "url": "{{base_url}}/categories"
+      }
+    },
+    {
+      "name": "Actualizar categoría",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Computadores actualizados\"\n}"
+        },
+        "url": "{{base_url}}/categories/{{category_id}}"
+      }
+    },
+    {
+      "name": "Eliminar categoría",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/categories/{{category_id}}"
+      }
+    },
+    {
+      "name": "Listar productos",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/products"
+      }
+    },
+    {
+      "name": "Consultar producto",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/products/{{product_id}}"
+      }
+    },
+    {
+      "name": "Crear producto",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Teclado mecánico\",\n  \"price\": 250000,\n  \"stock\": 10,\n  \"category_id\": 1\n}"
+        },
+        "url": "{{base_url}}/products"
+      }
+    },
+    {
+      "name": "Actualizar producto",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Mouse actualizado\",\n  \"price\": 130000,\n  \"stock\": 8,\n  \"category_id\": 2\n}"
+        },
+        "url": "{{base_url}}/products/{{product_id}}"
+      }
+    },
+    {
+      "name": "Eliminar producto",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/products/{{product_id}}"
+      }
+    }
+  ]
+}
